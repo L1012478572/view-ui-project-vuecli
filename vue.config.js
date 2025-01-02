@@ -32,7 +32,7 @@ const config = {
   devServer: {
     open: true,
     port: 8080,
-    host: 'localhost',
+    host: '0.0.0.0',
     proxy: {
       '/api': {
         target: 'https://localhost:8080',
