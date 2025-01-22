@@ -47,6 +47,11 @@
                                 <GridItem></GridItem>
                             </Grid>
                         </div>
+                        <div>
+                            <br>
+                            <label>云台速度:</label>
+                            <Slider v-model="ptz_speed" show-input></Slider>
+                        </div>
                     </GridItem>
                 </Grid>
             </div>
@@ -64,7 +69,7 @@
 
 <script>
 import axios from 'axios';
-import { Input, Select, Button, List, ListItem } from 'view-ui-plus';
+import {Slider, Input, Select, Button, List, ListItem } from 'view-ui-plus';
 
 export default {
     components: {
@@ -79,6 +84,7 @@ export default {
             presetList: [],
             Preset_Select: null,    // 选择预制信息 Select组件
             Preset_Input: null,     // 选择预制信息 Input组件
+            ptz_speed: 25,          // 云台速度
         };
     },
     mounted() {
@@ -171,20 +177,65 @@ export default {
                 this.$Message.error('测试错误，无图像！');
             }
         },
-        PTZ_Up() {
+        async PTZ_Up() {
             console.log('PTZ_Up');
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/ptz/up?speed=${this.ptz_speed}`;
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
         },
-        PTZ_Left() {
+        async PTZ_Left() {
             console.log('PTZ_Left');
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/ptz/left?speed=${this.ptz_speed}`;
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
         },
-        PTZ_Stop() {
+        async PTZ_Stop() {
             console.log('PTZ_Stop');
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/ptz/stop`;
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
         },
-        PTZ_Right() {
+        async PTZ_Right() {
             console.log('PTZ_Right');
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/ptz/right?speed=${this.ptz_speed}`;
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
         },
-        PTZ_Down() {
+        async PTZ_Down() {
             console.log('PTZ_Down');
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/ptz/down?speed=${this.ptz_speed}`;
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
         },
     },
 }

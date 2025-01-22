@@ -1,0 +1,418 @@
+<template>
+    <div>
+        <Grid square :col=2>
+            <GridItem>
+                <iframe id="webrtc-iframe" :src="iframeSrc" frameborder="0" allowfullscreen></iframe>
+            </GridItem>
+            <GridItem>
+                <div>
+                    <label>选择预制信息:</label>
+                    <Select name="PresetSelect" v-model="Preset_Select" @on-change="PresetDataChange_Select">
+                        <Option v-for="preset in presetList" :key="preset.id" :value="preset.id">{{ preset.preset_name }}</Option>
+                    </Select>
+                    <label>预制信息编号</label>
+                    <Input name="PresetInput" type="number" v-model="Preset_Input" @on-change="PresetDataChange_Input" />
+                    <br>
+                    <Button type="info" @click="runPreset">运行</Button>
+                    <Button type="warning" @click="pausePreset">暂停</Button>
+                    <br>
+                    <label>任务进度:</label>
+                    <Progress :percent="task_progress" :stroke-width="20" text-inside />
+                    <br>
+                    <label>任务状态:</label>
+                    <label>{{ task_status }}</label>
+                    <br>
+                    <label>任务测温数量:</label>
+                    <label>{{ task_thermal_num }}</label>
+                    <br>
+                    <label>实时最高温度:</label>
+                    <label>{{ real_max_temp }}</label>
+                    <br>
+                    <label>实时最低温度:</label>
+                    <label>{{ real_min_temp }}</label>
+                    <br>
+                    <label>实时平均温度:</label>
+                    <label>{{ real_avg_temp }}</label>
+                    <br>
+                    <br>
+                    <Button type="info" @click="readTaskResult">读取任务结果</Button>
+                </div>
+            </GridItem>
+            <GridItem>
+                <div>
+                    <br>
+                    <br>
+                    <div id="temperature-chart" style="width: 100%; height: 400px;"></div>
+                </div>
+            </GridItem>
+            <GridItem>
+                <div>
+                    <Table height="200" :columns="columns" :data="tab_data"></Table>
+                </div>
+            </GridItem>
+        </Grid>
+    </div>
+</template>
+
+<script>
+import axios from 'axios';
+import {Slider, Input, Select, Button, List, ListItem } from 'view-ui-plus';
+import { Table, Progress, Grid, GridItem } from 'view-ui-plus';
+import * as echarts from 'echarts';
+
+export default {
+    name: 'PresetRun',
+    components: {
+        Slider,
+        Input,
+        Select,
+        Button,
+        List,
+        ListItem,
+        Grid,
+        GridItem,
+        Progress,
+        Table
+    },
+    data() {
+        return {
+            presetList: [],
+            Preset_Select: null,    // 选择预制信息 Select组件
+            Preset_Input: null,     // 选择预制信息 Input组件
+            ptz_speed: 25,          // 云台速度
+            message: '',            // 提示消息
+            iframeSrc: '',          // iframe的src webRTC流地址
+            task_progress: 0,       // 任务进度
+            task_status: '未知',    // 任务状态
+            task_thermal_num: 0,    // 任务测温数量
+            real_max_temp: 0.1,     // 实时最高温度
+            real_min_temp: 0.1,     // 实时最低温度
+            real_avg_temp: 0.1,     // 实时平均温度
+            list_maxThermals: [35.1, 35.2, 35.3, 35.4],    // 最大温度列表
+            list_minThermals: [24.1, 24.2, 24.3, 24.4],    // 最小温度列表
+            list_avgThermals: [14.6, 14.7, 14.8, 14.9],    // 平均温度列表
+            maxThermals_max: 0.1,   // 最大温度最大值
+            maxThermals_min: 0.1,   // 最大温度最小值
+            maxThermals_avg: 0.1,   // 最大温度平均值
+            minThermals_max: 0.1,   // 最小温度最大值
+            minThermals_min: 0.1,   // 最小温度最小值
+            minThermals_avg: 0.1,   // 最小温度平均值
+            avgThermals_max: 0.1,   // 平均温度最大值
+            avgThermals_min: 0.1,   // 平均温度最小值
+            avgThermals_avg: 0.1,   // 平均温度平均值
+            columns: [
+                {
+                    title: 'Type',
+                    key: 'type'
+                },
+                {
+                    title: 'Max',
+                    key: 'max'
+                },
+                {
+                    title: 'Min',
+                    key: 'min'
+                },
+                {
+                    title: 'Avg',
+                    key: 'avg'
+                }
+            ],
+            tab_data: [
+                {
+                    type: '最大温度',
+                    max: this.maxThermals_max,
+                    min: this.maxThermals_min,
+                    avg: this.maxThermals_avg
+                },
+                {
+                    type: '最小温度',
+                    max: this.minThermals_max,
+                    min: this.minThermals_min,
+                    avg: this.minThermals_avg
+                },
+                {
+                    type: '平均温度',
+                    max: this.avgThermals_max,
+                    min: this.avgThermals_min,
+                    avg: this.avgThermals_avg
+                }
+            ],
+        };
+    },
+    mounted() {
+        this.fetchPresetList();
+        this.initIframe('mppstream');
+        this.timer = setInterval(this.readTaskProgress, 2000);
+        this.initChart();
+    },
+    beforeDestroy() {
+        clearInterval(this.timer);
+    },
+    methods: {
+        initIframe(stream) {
+            const host = window.location.hostname;
+            this.iframeSrc = `http://${host}:8889/${stream}`;
+            const iframe = document.getElementById('webrtc-iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+        },
+        async fetchPresetList() {
+            try {
+                const host = window.location.hostname;
+                const port = '8010'; // 你的后端端口号
+                const url_send = `http://${host}:${port}/api/param/presetlist`;
+                const response = await axios.get(url_send);
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(response.data, 'application/xml');
+                const items = xmlDoc.getElementsByTagName('Item');
+                this.presetList = Array.from(items).map(item => ({
+                    id: item.getAttribute('id'),
+                    preset_name: item.getAttribute('preset_name'),
+                    modle_name: item.getAttribute('model_name'),
+                    ir_model_name: item.getAttribute('ir_model_name'),
+                    cla_id: item.getAttribute('cla_id'),
+                    cla_name: item.getAttribute('cla_name'),
+                    score_val: item.getAttribute('score_val'),
+                    object_id: item.getAttribute('object_id'),
+                    ir_object_id: item.getAttribute('ir_object_id'),
+                    location: item.getAttribute('location'),
+                    image_channel: item.getAttribute('image_channel'),
+                    isRunIrModel: item.getAttribute('isRunIrModel'),
+                    isControlPtz: item.getAttribute('isControlPtz'),
+                    thermal_num: item.getAttribute('thermal_num')
+                }));
+                // 按照标号排序
+                this.presetList.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+                this.message = '预制信息列表已更新';
+                setTimeout(() => this.message = '', 3000); // 3��后清除提示消息
+            } catch (error) {
+                console.error('获取预制信息列表时出错:', error);
+                this.message = '获取预制信息列表时出错';
+                setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
+            }
+        },
+        PresetDataChange_Input() {
+            // console.log(this.Preset_Input);
+            // 判断是否超过预制信息列表的长度
+            if (this.Preset_Input > this.presetList.length) {
+                this.$Message.error('预制信息编号超出范围');
+                return;
+            }
+            // 设置PresetSelect的值
+            this.Preset_Select = this.Preset_Input;
+            // console.log(this.Preset_Select);
+        },
+        PresetDataChange_Select() {
+            // console.log(this.Preset_Select);
+            this.Preset_Input = parseInt(this.Preset_Select);
+            // console.log(this.Preset_Input);
+        },
+        async runPreset() {
+            if (this.Preset_Select === null) {
+                this.$Message.error('请选择预制信息');
+                return;
+            }
+            const preset = this.presetList.find(preset => preset.id === this.Preset_Select);
+            if (preset === undefined) {
+                this.$Message.error('预制信息不存在');
+                return;
+            }
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/task/execute?preset_id=${preset.id}`;
+            // post
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+                const responseData = JSON.stringify(response.data);
+                if (responseData.indexOf('Task executed successfully') !== -1) {
+                    this.$Message.success('预制信息已发送');
+                } else {
+                    this.$Message.error('预制信息发送失败');
+                }
+            } catch (error) {
+                console.error('发送预制信息时出错:', error);
+                this.$Message.error('发送预制信息时出错');
+            }
+        },
+        async pausePreset() {
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/task/pause`;
+            // post
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+                const responseData = JSON.stringify(response.data);
+                if (responseData.indexOf('success') !== -1) {
+                    this.$Message.success('预制信息已暂停');
+                } else {
+                    this.$Message.error('预制信息暂停失败');
+                }
+            } catch (error) {
+                console.error('暂停预制信息时出错:', error);
+                this.$Message.error('暂停预制信息时出错');
+            }
+        },
+        async readTaskProgress(){       // 读任务进度
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/task/progress`;
+            try {
+                const response = await axios.get(url_send);
+                const responseData = response.data;
+                if (responseData.status) {
+                    switch (responseData.status) {
+                        case 'idle':
+                            this.task_status = '空闲';
+                            break;
+                        case 'running':
+                            this.task_status = '运行中';
+                            break;
+                        default:
+                            this.task_status = '未知';
+                    }
+                }
+                if (responseData.progress){
+                    this.task_progress = parseInt(responseData.progress);
+                }
+                if (responseData.thermal_num){
+                    this.task_thermal_num = parseInt(responseData.thermal_num)
+                }
+                if (responseData.realtime_max_thermal){
+                    this.real_max_temp = parseFloat(responseData.realtime_max_thermal)
+                }
+                if (responseData.realtime_min_thermal){
+                    this.real_min_temp = parseFloat(responseData.realtime_min_thermal)
+                }
+                if (responseData.realtime_avg_thermal){
+                    this.real_avg_temp = parseFloat(responseData.realtime_avg_thermal)
+                }
+            } catch (error) {
+                console.error('获取任务进度时出错:', error);
+            }
+        },
+        async readTaskResult(){     // 读取任务结果
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/task/result`;
+            try {
+                const response = await axios.get(url_send);
+                const responseData = response.data;
+                if (responseData.status === 'success') {
+                    this.$Message.success('任务结果已更新');
+                    
+                } else {
+                    this.$Message.error('任务仍在运行中, 展示部分结果');
+                }
+                this.list_maxThermals = responseData.list_maxThermals;
+                this.list_minThermals = responseData.list_minThermals;
+                this.list_avgThermals = responseData.list_avgThermals;
+                this.maxThermals_max = responseData.maxThermals_max;
+                this.maxThermals_min = responseData.maxThermals_min;
+                this.maxThermals_avg = responseData.maxThermals_avg;
+                this.minThermals_max = responseData.minThermals_max;
+                this.minThermals_min = responseData.minThermals_min;
+                this.minThermals_avg = responseData.minThermals_avg;
+                this.avgThermals_max = responseData.avgThermals_max;
+                this.avgThermals_min = responseData.avgThermals_min;
+                this.avgThermals_avg = responseData.avgThermals_avg;
+                this.tab_data = [
+                    {
+                        type: '最大温度',
+                        max: parseFloat(responseData.maxThermals_max),
+                        min: parseFloat(responseData.maxThermals_min),
+                        avg: parseFloat(responseData.maxThermals_avg)
+                    },
+                    {
+                        type: '最小温度',
+                        max: parseFloat(responseData.minThermals_max),
+                        min: parseFloat(responseData.minThermals_min),
+                        avg: parseFloat(responseData.minThermals_avg)
+                    },
+                    {
+                        type: '平均温度',
+                        max: parseFloat(responseData.avgThermals_max),
+                        min: parseFloat(responseData.avgThermals_min),
+                        avg: parseFloat(responseData.avgThermals_avg)
+                    }
+                ];
+                this.initChart(); // 更新图表
+            } catch (error) {
+                console.error('读取任务结果时出错:', error);
+                this.$Message.error('读取任务结果时出错');
+            }
+        },
+        initChart() {
+            const chartDom = document.getElementById('temperature-chart');
+            const myChart = echarts.init(chartDom);
+            const option = {
+                title: {
+                text: '温度曲线图'
+                },
+                tooltip: {
+                trigger: 'axis'
+                },
+                legend: {
+                data: ['最大温度', '最小温度', '平均温度']
+                },
+                xAxis: {
+                type: 'category',
+                data: Array.from({ length: this.list_maxThermals.length }, (_, i) => i + 1)
+                },
+                yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: '{value} °C'
+                }
+                },
+                series: [
+                {
+                    name: '最大温度',
+                    type: 'line',
+                    data: this.list_maxThermals
+                },
+                {
+                    name: '最小温度',
+                    type: 'line',
+                    data: this.list_minThermals
+                },
+                {
+                    name: '平均温度',
+                    type: 'line',
+                    data: this.list_avgThermals
+                }
+                ]
+            };
+            myChart.setOption(option);
+        },
+    }
+}
+
+</script>
+
+<style lang="less" scoped>
+
+    #temperature-chart {
+    width: 100%;
+    height: 400px;
+    }
+
+    .iframe-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    overflow: hidden;
+    }
+
+    iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    }
+</style>
