@@ -36,6 +36,9 @@
                     <br>
                     <br>
                     <Button type="info" @click="readTaskResult">读取任务结果</Button>
+                    <br>
+                    <br>
+                    <Button type="info" @click="on_capture">拍照</Button>
                 </div>
             </GridItem>
             <GridItem>
@@ -342,6 +345,35 @@ export default {
             } catch (error) {
                 console.error('读取任务结果时出错:', error);
                 this.$Message.error('读取任务结果时出错');
+            }
+        },
+        async on_capture(){    // 拍照
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/camera/capture`;
+            try {
+                const response = await axios.get(url_send, { responseType: 'arraybuffer' });
+                const contentType = response.headers['content-type'];
+                console.log(contentType)
+                if (contentType && contentType.includes('image/jpeg')) {
+                    console.log('测试预制信息成功');
+                    const blob = new Blob([response.data], { type: 'image/jpeg' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    const timestamp = new Date().toISOString().replace(/[-:]/g, '_').replace(/\..+/, '');
+                    link.download = `${timestamp}_capture.jpg`;
+                    link.click();
+                    // console.log(blob);
+                    // const imageUrl = URL.createObjectURL(blob);
+                    // console.log(imageUrl);
+                    // this.$refs.showResultImage.src = imageUrl;
+                    // console.log(this.$refs.showResultImage.src);
+                } else {
+                    this.$Message.error('测试错误，无图像！');
+                }
+            } catch (error) {
+                console.error('测试预制信息时出错:', error);
+                this.$Message.error('无图像！');
             }
         },
         initChart() {
