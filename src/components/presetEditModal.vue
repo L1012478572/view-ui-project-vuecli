@@ -63,6 +63,33 @@
                 </ListItem>
                 <ListItem>
                     <div class="form-item">
+                        <div style="display: flex; align-items: center;">
+                            <label style="margin-right: 10px;">absoluteZoom:</label>
+                            <Input v-model="presetInfo.location.absoluteZoom" type="number" />
+                        </div>
+                        <br>
+                        <div style="display: flex; align-items: center;">
+                            <label style="margin-right: 10px;">focus:</label>
+                            <Input v-model="presetInfo.location.focus" type="number" />
+                        </div>
+                        <br>
+                        <div style="display: flex; align-items: center;">
+                            <label style="margin-right: 10px;">focalLen:</label>
+                            <Input v-model="presetInfo.location.focalLen" type="number" />
+                        </div>
+                        <br>
+                        <div style="display: flex; align-items: center;">
+                            <label style="margin-right: 10px;">horizontalSpeed:</label>
+                            <Input v-model="presetInfo.location.horizontalSpeed" type="number" />
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <label style="margin-right: 10px;">verticalSpeed:</label>
+                            <Input v-model="presetInfo.location.verticalSpeed" type="number" />
+                        </div>
+                    </div>
+                </ListItem>
+                <ListItem>
+                    <div class="form-item">
                         <label>图像通道:</label>
                         <Select v-model="presetInfo.image_channel">
                             <Option value="0">高清</Option>
@@ -194,6 +221,11 @@ export default {
                     const location = preset.getElementsByTagName('location')[0].getElementsByTagName('Item')[0];
                     this.presetInfo.location.x = location.getAttribute('x');
                     this.presetInfo.location.y = location.getAttribute('y');
+                    this.presetInfo.location.absoluteZoom = location.getAttribute('absoluteZoom');
+                    this.presetInfo.location.focus = location.getAttribute('focus');
+                    this.presetInfo.location.focalLen = location.getAttribute('focalLen');
+                    this.presetInfo.location.horizontalSpeed = location.getAttribute('horizontalSpeed');
+                    this.presetInfo.location.verticalSpeed = location.getAttribute('verticalSpeed');
                     this.presetInfo.image_channel = preset.getElementsByTagName('image_channel')[0].textContent;
                     this.presetInfo.isRunIrModel = preset.getElementsByTagName('isRunIrModel')[0].textContent;
                     this.presetInfo.isControlPtz = preset.getElementsByTagName('isControlPtz')[0].textContent;
@@ -218,7 +250,7 @@ export default {
             this.$emit('open-modal', id);
         },
         applyChanges() {
-            // 应用按钮��接口
+            // 应用按钮接口
             const host = window.location.hostname;
             const port = '8010'; // 你的后端端口号
             const url_send = `http://${host}:${port}/api/param/presetlist/update`;
@@ -235,7 +267,7 @@ export default {
                         ${this.presetInfo.score.map(item => `<Item value="${item.value}" />`).join('')}
                     </score>
                     <location>
-                        <Item x="${this.presetInfo.location.x}" y="${this.presetInfo.location.y}" />
+                        <Item x="${this.presetInfo.location.x}" y="${this.presetInfo.location.y}" absoluteZoom="${this.presetInfo.location.absoluteZoom}" focus="${this.presetInfo.location.focus}" focalLen="${this.presetInfo.location.focalLen}" horizontalSpeed="${this.presetInfo.location.horizontalSpeed}" verticalSpeed="${this.presetInfo.location.verticalSpeed}" />
                     </location>
                     <image_channel>${this.presetInfo.image_channel}</image_channel>
                     <isRunIrModel>${this.presetInfo.isRunIrModel}</isRunIrModel>
@@ -283,7 +315,7 @@ export default {
                         ${this.presetInfo.score.map(item => `<Item value="${item.value}" />`).join('')}
                     </score>
                     <location>
-                        <Item x="${this.presetInfo.location.x}" y="${this.presetInfo.location.y}" />
+                        <Item x="${this.presetInfo.location.x}" y="${this.presetInfo.location.y}" absoluteZoom="${this.presetInfo.location.absoluteZoom}" focus="${this.presetInfo.location.focus}" focalLen="${this.presetInfo.location.focalLen}" horizontalSpeed="${this.presetInfo.location.horizontalSpeed}" verticalSpeed="${this.presetInfo.location.verticalSpeed}" />
                     </location>
                     <image_channel>${this.presetInfo.image_channel}</image_channel>
                     <isRunIrModel>${this.presetInfo.isRunIrModel}</isRunIrModel>
@@ -337,11 +369,18 @@ export default {
     padding: 20px;
     border-radius: 5px;
     width: 800px;
+    max-height: 50vh; /* 限制高度为视窗高度的50% */
+    overflow-y: auto; /* 添加垂直滚动条 */
+    position: relative; /* 为关闭按钮定位 */
 }
 .close {
+    position: sticky; /* 使关闭按钮固定在顶部 */
+    top: 0;
     float: right;
     font-size: 24px;
     cursor: pointer;
+    background-color: white; /* 确保背景色与modal-content一致 */
+    z-index: 1;
 }
 .modal-footer {
     display: flex;

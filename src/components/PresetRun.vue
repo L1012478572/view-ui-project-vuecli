@@ -1,6 +1,6 @@
 <template>
     <div>
-        <Grid square :col=2>
+        <Grid square :col=3>
             <GridItem>
                 <iframe id="webrtc-iframe" :src="iframeSrc" frameborder="0" allowfullscreen></iframe>
             </GridItem>
@@ -51,6 +51,17 @@
             <GridItem>
                 <div>
                     <Table height="200" :columns="columns" :data="tab_data"></Table>
+                </div>
+            </GridItem>
+            <GridItem>
+                <div class="image-container">
+                    <div class="image-grid">
+                        <img v-for="(image, index) in images" 
+                            :key="index" 
+                            :src="image.src" 
+                            class="grid-image"
+                            @click="showLargeImage(image)">
+                    </div>
                 </div>
             </GridItem>
         </Grid>
@@ -141,6 +152,13 @@ export default {
                     avg: this.avgThermals_avg
                 }
             ],
+            images: Array(20).fill().map((_, i) => ({
+                src: '', // 这里填入实际的图片路径
+                id: i
+            })),
+            scrollPosition: 0,
+            scrollValue: 0,
+            maxScroll: 0,
         };
     },
     mounted() {
@@ -148,6 +166,7 @@ export default {
         this.initIframe('mppstream');
         this.timer = setInterval(this.readTaskProgress, 2000);
         this.initChart();
+        this.calculateMaxScroll();
     },
     beforeDestroy() {
         clearInterval(this.timer);
@@ -188,7 +207,7 @@ export default {
                 // 按照标号排序
                 this.presetList.sort((a, b) => parseInt(a.id) - parseInt(b.id));
                 this.message = '预制信息列表已更新';
-                setTimeout(() => this.message = '', 3000); // 3��后清除提示消息
+                setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
             } catch (error) {
                 console.error('获取预制信息列表时出错:', error);
                 this.message = '获取预制信息列表时出错';
@@ -346,7 +365,12 @@ export default {
                 console.error('读取任务结果时出错:', error);
                 this.$Message.error('读取任务结果时出错');
             }
+            // 读取测温过程图像
+            for (let i = 0; i < 20; i++) {
+                this.readThermalImage(i);
+            }
         },
+        
         async on_capture(){    // 拍照
             const host = window.location.hostname;
             const port = '8010'; // 你的后端端口号
@@ -419,6 +443,44 @@ export default {
             };
             myChart.setOption(option);
         },
+        handleScroll(value) {
+            this.scrollPosition = value;
+        },
+        showLargeImage(image) {
+            // 这里可以添加点击图片后的放大显示逻辑
+            console.log('显示图片:', image.id);
+        },
+        calculateMaxScroll() {
+            const containerHeight = 400; // 容器高度
+            const totalImagesHeight = Math.ceil(this.images.length / 2) * 200; // 每行2张图，每张图高200px
+            this.maxScroll = Math.max(0, totalImagesHeight - containerHeight);
+        },
+        async readThermalImage(id) {
+            if (id < 0 || id > 19) {
+                this.$Message.error('图像编号超出范围');
+                return;
+            }
+            
+            const host = window.location.hostname;
+            const port = '8010';
+            const url_send = `http://${host}:${port}/api/task/thermal_image?id=${id}`;
+            
+            try {
+                const response = await axios.get(url_send, { responseType: 'arraybuffer' });
+                const contentType = response.headers['content-type'];
+                
+                if (contentType && contentType.includes('image/jpeg')) {
+                    const blob = new Blob([response.data], { type: 'image/jpeg' });
+                    const imageUrl = URL.createObjectURL(blob);
+                    this.images[id].src = imageUrl;
+                } else {
+                    this.$Message.error(`获取图像${id}失败`);
+                }
+            } catch (error) {
+                console.error('读取测温过程图像时出错:', error);
+                this.$Message.error(`读取图像${id}时出错`);
+            }
+        },
     }
 }
 
@@ -446,5 +508,36 @@ export default {
     width: 100%;
     height: 100%;
     border: none;
+    }
+
+    .image-container {
+        position: relative;
+        height: 400px;
+        overflow: auto;
+    }
+
+    .image-grid {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .grid-image {
+        width: calc(50% - 10px);
+        height: 190px;
+        margin: 5px;
+        object-fit: cover;
+        cursor: pointer;
+    }
+
+    .scroll-bar {
+        position: absolute;
+        right: 0;
+        top: 10px;
+        width: 20px;
+        height: calc(100% - 20px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 </style>
