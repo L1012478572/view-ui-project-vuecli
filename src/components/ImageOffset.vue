@@ -1,4 +1,7 @@
 <template>
+    <div>
+        <h1>图像偏移设置</h1>
+    </div>
     <div class="centered">
         <List>
             <ListItem>

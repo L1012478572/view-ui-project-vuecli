@@ -1,4 +1,7 @@
 <template>
+    <div>
+        <h1>云台控制参数设置</h1>
+    </div>
     <div class="centered">
         <List>
             <ListItem>

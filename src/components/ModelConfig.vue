@@ -1,4 +1,7 @@
 <template>
+    <div>
+        <h1>模型管理</h1>
+    </div>
     <div class="centered">
         <List>
             <ListItem>

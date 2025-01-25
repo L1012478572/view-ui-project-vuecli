@@ -20,6 +20,7 @@
               <MenuItem name="2-3" @click="currentView = 'PTZConfig'">云台设置</MenuItem>
               <MenuItem name="2-4" @click="currentView = 'ImageOffset'">图像偏移设置</MenuItem>
               <MenuItem name="2-5" @click="currentView = 'PTZMoveConfig'">云台控制参数设置</MenuItem>
+              <MenuItem name="2-6" @click="currentView = 'NetWorkSet'">网络设置</MenuItem>
           </MenuGroup>
       </Submenu>
     </Menu>
@@ -41,6 +42,7 @@ import ModelConfig from './components/ModelConfig.vue'
 import PresetConfig from './components/PresetConfig.vue'
 import PresetTest from './components/PresetTest.vue'
 import PresetRun from './components/PresetRun.vue'
+import NetWorkSet from './components/NetWorkSet.vue'
 
 export default {
   name: 'App',
@@ -52,6 +54,7 @@ export default {
     PresetConfig,
     PresetTest,
     PresetRun,
+    NetWorkSet,
     // WebrtcPlayer
   },
   data() {
@@ -77,6 +80,8 @@ export default {
           return 'PresetTest'
         case 'PresetRun':
           return 'PresetRun'
+        case 'NetWorkSet':
+          return 'NetWorkSet'
         default:
           return null
       }

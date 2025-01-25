@@ -52,6 +52,24 @@
                             <label>云台速度:</label>
                             <Slider v-model="ptz_speed" show-input></Slider>
                         </div>
+                        <div>
+                            <label>垂直位置:</label>
+                            <Input type="number" v-model="elevation" placeholder="云台高度" style="display: inline-block; width: 120px; margin-right: 10px;" />
+                            <label>水平位置:</label>
+                            <Input type="number" v-model="azimuth" placeholder="云台方位" style="display: inline-block; width: 120px;" />
+                            <br>
+                            <label>变焦:</label>
+                            <Input type="number" v-model="absoluteZoom" placeholder="绝对变焦" style="display: inline-block; width: 120px; margin-right: 10px;" />
+                            <label>焦距:</label>
+                            <Input type="number" v-model="focus" placeholder="绝对焦距" style="display: inline-block; width: 120px; margin-right: 10px;" />
+                            <br>
+                            <label>水平速度:</label>
+                            <Input type="number" v-model="horizontalSpeed" placeholder="水平速度" style="display: inline-block; width: 120px; margin-right: 10px;" />
+                            <label>垂直速度:</label>
+                            <Input type="number" v-model="verticalSpeed" placeholder="垂直速度" style="display: inline-block; width: 120px;" />
+                            <br>
+                            <Button type="info" @click="PTZ_Set">设置云台</Button>
+                        </div>
                     </GridItem>
                 </Grid>
             </div>
@@ -65,11 +83,19 @@
             </div>
         </GridItem>
     </Grid>
+    <FooterToolbar>
+        <label>当前云台位置:</label>
+        <label>高度: {{ ptzCurrentElevation }}</label>
+        <label>方位: {{ ptzCurrentAzimuth }}</label>
+        <label>变焦: {{ ptzCurrentAbsoluteZoom }}</label>
+        <label>焦距: {{ ptzCurrentFocus }}</label>
+        <label>焦距: {{ ptzCurrentFocalLen }}</label>
+    </FooterToolbar>
 </template>
 
 <script>
 import axios from 'axios';
-import {Slider, Input, Select, Button, List, ListItem } from 'view-ui-plus';
+import {Slider, Input, Select, Button, List, ListItem, FooterToolbar } from 'view-ui-plus';
 
 export default {
     components: {
@@ -78,6 +104,7 @@ export default {
         Button,
         Select,
         Input,
+        FooterToolbar,
     },
     data() {
         return {
@@ -85,11 +112,32 @@ export default {
             Preset_Select: null,    // 选择预制信息 Select组件
             Preset_Input: null,     // 选择预制信息 Input组件
             ptz_speed: 25,          // 云台速度
+            elevation: 0,           // 云台高度
+            azimuth: 0,            // 云台方位
+            absoluteZoom: 1.0,     // 绝对变焦
+            focus: 27000,          // 绝对焦距
+            focalLen: 22,          // 焦距
+            horizontalSpeed: 25,  // 水平速度
+            verticalSpeed: 25,    // 垂直速度
+            ptzCurrentElevation: 0, // 当前云台高度
+            ptzCurrentAzimuth: 0,   // 当前云台方位
+            ptzCurrentAbsoluteZoom: 1.0, // 当前绝对变焦
+            ptzCurrentFocus: 27000, // 当前绝对焦距
+            ptzCurrentFocalLen: 22, // 当前焦距
+            timer: null, // 添加定时器变量
         };
     },
     mounted() {
         this.fetchPresetList()
         this.initIframe('mppstream');
+        // 启动定时获取云台位置
+        this.timer = setInterval(this.PTZ_Get, 2000); // 每秒更新一次
+    },
+    beforeDestroy() {
+        // 组件销毁前清除定时器
+        if (this.timer) {
+            clearInterval(this.timer);
+        }
     },
     methods: {
         initIframe(stream) {
@@ -130,7 +178,7 @@ export default {
                 // 按照标号排序
                 this.presetList.sort((a, b) => parseInt(a.id) - parseInt(b.id));
                 this.message = '预制信息列表已更新';
-                setTimeout(() => this.message = '', 3000); // 3��后清除提示消息
+                setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
             } catch (error) {
                 console.error('获取预制信息列表时出错:', error);
                 this.message = '获取预制信息列表时出错';
@@ -235,6 +283,48 @@ export default {
                 console.log(response.data);
             } catch (error) {
                 console.error('Error:', error);
+            }
+        },
+        async PTZ_Set() {
+            console.log('PTZ_Set');
+            const host = window.location.hostname;
+            const port = '8010';
+            const url_send = `http://${host}:${port}/api/ptz/set_position`;
+            
+            const params = {
+                elevation: this.elevation,
+                azimuth: this.azimuth,
+                absoluteZoom: this.absoluteZoom,
+                focus: this.focus,
+                focalLen: this.focalLen,
+                horizontalSpeed: this.horizontalSpeed,
+                verticalSpeed: this.verticalSpeed
+            };
+
+            try {
+                const response = await axios.put(url_send, params);
+                console.log(response.data);
+                this.$Message.success('云台位置设置成功');
+            } catch (error) {
+                console.error('Error:', error);
+                this.$Message.error('云台位置设置失败');
+            }
+        },
+        async PTZ_Get() {
+            const host = window.location.hostname;
+            const port = '8010';
+            const url_send = `http://${host}:${port}/api/ptz/get_position`;
+            
+            try {
+                const response = await axios.get(url_send);
+                // 更新云台位置数据
+                this.ptzCurrentElevation = response.data.elevation;
+                this.ptzCurrentAzimuth = response.data.azimuth;
+                this.ptzCurrentAbsoluteZoom = response.data.absoluteZoom;
+                this.ptzCurrentFocus = response.data.focus;
+                this.ptzCurrentFocalLen = response.data.focalLen;
+            } catch (error) {
+                console.error('获取云台位置失败:', error);
             }
         },
     },
