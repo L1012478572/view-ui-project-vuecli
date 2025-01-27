@@ -145,7 +145,7 @@ export default {
                     }]
                 };
 
-                await axios.post(url_send, networkData);
+                await axios.put(url_send, networkData);
                 this.message = '网络设置保存成功';
             } catch (error) {
                 console.error('保存网络设置失败:', error);
