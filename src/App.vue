@@ -15,12 +15,13 @@
           <MenuGroup title="算法设置">
               <MenuItem name="2-1" @click="currentView = 'PresetConfig'">预制信息设置</MenuItem>
               <MenuItem name="2-2" @click="currentView = 'ModelConfig'">模型管理</MenuItem>
+              <MenuItem name="2-3" @click="currentView = 'VideoManger'">视频管理</MenuItem>
           </MenuGroup>
           <MenuGroup title="系统设置">
-              <MenuItem name="2-3" @click="currentView = 'PTZConfig'">云台设置</MenuItem>
-              <MenuItem name="2-4" @click="currentView = 'ImageOffset'">图像偏移设置</MenuItem>
-              <MenuItem name="2-5" @click="currentView = 'PTZMoveConfig'">云台控制参数设置</MenuItem>
-              <MenuItem name="2-6" @click="currentView = 'NetWorkSet'">网络设置</MenuItem>
+              <MenuItem name="2-4" @click="currentView = 'PTZConfig'">云台设置</MenuItem>
+              <MenuItem name="2-5" @click="currentView = 'ImageOffset'">图像偏移设置</MenuItem>
+              <MenuItem name="2-6" @click="currentView = 'PTZMoveConfig'">云台控制参数设置</MenuItem>
+              <MenuItem name="2-7" @click="currentView = 'NetWorkSet'">网络设置</MenuItem>
           </MenuGroup>
       </Submenu>
     </Menu>
@@ -43,6 +44,7 @@ import PresetConfig from './components/PresetConfig.vue'
 import PresetTest from './components/PresetTest.vue'
 import PresetRun from './components/PresetRun.vue'
 import NetWorkSet from './components/NetWorkSet.vue'
+import VideoManger from './components/VideoManger.vue'
 
 export default {
   name: 'App',
@@ -55,7 +57,7 @@ export default {
     PresetTest,
     PresetRun,
     NetWorkSet,
-    // WebrtcPlayer
+    VideoManger,
   },
   data() {
     return {
@@ -82,6 +84,8 @@ export default {
           return 'PresetRun'
         case 'NetWorkSet':
           return 'NetWorkSet'
+        case 'VideoManger':
+          return 'VideoManger'
         default:
           return null
       }

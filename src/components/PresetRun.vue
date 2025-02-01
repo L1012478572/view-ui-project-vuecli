@@ -1,77 +1,88 @@
 <template>
-    <div>
-        <Grid square :col=3>
-            <GridItem>
-                <iframe id="webrtc-iframe" :src="iframeSrc" frameborder="0" allowfullscreen></iframe>
-            </GridItem>
-            <GridItem>
-                <div>
-                    <label>选择预制信息:</label>
-                    <Select name="PresetSelect" v-model="Preset_Select" @on-change="PresetDataChange_Select">
-                        <Option v-for="preset in presetList" :key="preset.id" :value="preset.id">{{ preset.preset_name }}</Option>
-                    </Select>
-                    <label>预制信息编号</label>
-                    <Input name="PresetInput" type="number" v-model="Preset_Input" @on-change="PresetDataChange_Input" />
-                    <br>
-                    <Button type="info" @click="runPreset">运行</Button>
-                    <Button type="warning" @click="pausePreset">暂停</Button>
-                    <br>
-                    <label>任务进度:</label>
-                    <Progress :percent="task_progress" :stroke-width="20" text-inside />
-                    <br>
-                    <label>任务状态:</label>
-                    <label>{{ task_status }}</label>
-                    <br>
-                    <label>任务测温数量:</label>
-                    <label>{{ task_thermal_num }}</label>
-                    <br>
-                    <label>实时最高温度:</label>
-                    <label>{{ real_max_temp }}</label>
-                    <br>
-                    <label>实时最低温度:</label>
-                    <label>{{ real_min_temp }}</label>
-                    <br>
-                    <label>实时平均温度:</label>
-                    <label>{{ real_avg_temp }}</label>
-                    <br>
-                    <br>
-                    <Button type="info" @click="readTaskResult">读取任务结果</Button>
-                    <br>
-                    <br>
-                    <Button type="info" @click="on_capture">拍照</Button>
+<div>
+    <Grid square :col=3>
+        <GridItem>
+            <iframe id="webrtc-iframe" :src="iframeSrc" frameborder="0" allowfullscreen></iframe>
+        </GridItem>
+        <GridItem>
+            <div>
+                <label>选择预制信息:</label>
+                <Select name="PresetSelect" v-model="Preset_Select" @on-change="PresetDataChange_Select">
+                    <Option v-for="preset in presetList" :key="preset.id" :value="preset.id">{{ preset.preset_name }}</Option>
+                </Select>
+                <label>预制信息编号</label>
+                <Input name="PresetInput" type="number" v-model="Preset_Input" @on-change="PresetDataChange_Input" />
+                <br>
+                <Button type="info" @click="runPreset">运行</Button>
+                <Button type="warning" @click="pausePreset">暂停</Button>
+                <br>
+                <label>任务进度:</label>
+                <Progress :percent="task_progress" :stroke-width="20" text-inside />
+                <br>
+                <label>任务状态:</label>
+                <label>{{ task_status }}</label>
+                <br>
+                <label>任务测温数量:</label>
+                <label>{{ task_thermal_num }}</label>
+                <br>
+                <label>实时最高温度:</label>
+                <label>{{ real_max_temp }}</label>
+                <br>
+                <label>实时最低温度:</label>
+                <label>{{ real_min_temp }}</label>
+                <br>
+                <label>实时平均温度:</label>
+                <label>{{ real_avg_temp }}</label>
+                <br>
+                <br>
+                <Button type="info" @click="readTaskResult">读取任务结果</Button>
+                <br>
+                <br>
+                <Button type="info" @click="on_capture">拍照</Button>
+                <br>
+                <Button type="info" @click="startRecording">开始录像</Button>
+                <Button type="info" @click="stopRecording">停止录像</Button>
+            </div>
+        </GridItem>
+        <GridItem>
+            <div>
+                <br>
+                <br>
+                <div id="temperature-chart" style="width: 100%; height: 400px;"></div>
+            </div>
+        </GridItem>
+        <GridItem>
+            <div>
+                <Table height="200" :columns="columns" :data="tab_data"></Table>
+            </div>
+        </GridItem>
+        <GridItem>
+            <div class="image-container">
+                <div class="image-grid">
+                    <img v-for="(image, index) in images" :key="index" :src="image.src" class="grid-image" @click="showLargeImage(image)">
                 </div>
-            </GridItem>
-            <GridItem>
-                <div>
-                    <br>
-                    <br>
-                    <div id="temperature-chart" style="width: 100%; height: 400px;"></div>
-                </div>
-            </GridItem>
-            <GridItem>
-                <div>
-                    <Table height="200" :columns="columns" :data="tab_data"></Table>
-                </div>
-            </GridItem>
-            <GridItem>
-                <div class="image-container">
-                    <div class="image-grid">
-                        <img v-for="(image, index) in images" 
-                            :key="index" 
-                            :src="image.src" 
-                            class="grid-image"
-                            @click="showLargeImage(image)">
-                    </div>
-                </div>
-            </GridItem>
-        </Grid>
-    </div>
+            </div>
+        </GridItem>
+    </Grid>
+</div>
 </template>
 
 <script>
 import axios from 'axios';
-import {Slider, Input, Select, Button, List, ListItem } from 'view-ui-plus';
-import { Table, Progress, Grid, GridItem } from 'view-ui-plus';
+import {
+    Slider,
+    Input,
+    Select,
+    Button,
+    List,
+    ListItem
+} from 'view-ui-plus';
+import {
+    Table,
+    Progress,
+    Grid,
+    GridItem
+} from 'view-ui-plus';
 import * as echarts from 'echarts';
 
 export default {
@@ -90,32 +101,32 @@ export default {
     },
     data() {
         return {
+            isSaveVideo: false, // 是否正在保存视频
             presetList: [],
-            Preset_Select: null,    // 选择预制信息 Select组件
-            Preset_Input: null,     // 选择预制信息 Input组件
-            ptz_speed: 25,          // 云台速度
-            message: '',            // 提示消息
-            iframeSrc: '',          // iframe的src webRTC流地址
-            task_progress: 0,       // 任务进度
-            task_status: '未知',    // 任务状态
-            task_thermal_num: 0,    // 任务测温数量
-            real_max_temp: 0.1,     // 实时最高温度
-            real_min_temp: 0.1,     // 实时最低温度
-            real_avg_temp: 0.1,     // 实时平均温度
-            list_maxThermals: [35.1, 35.2, 35.3, 35.4],    // 最大温度列表
-            list_minThermals: [24.1, 24.2, 24.3, 24.4],    // 最小温度列表
-            list_avgThermals: [14.6, 14.7, 14.8, 14.9],    // 平均温度列表
-            maxThermals_max: 0.1,   // 最大温度最大值
-            maxThermals_min: 0.1,   // 最大温度最小值
-            maxThermals_avg: 0.1,   // 最大温度平均值
-            minThermals_max: 0.1,   // 最小温度最大值
-            minThermals_min: 0.1,   // 最小温度最小值
-            minThermals_avg: 0.1,   // 最小温度平均值
-            avgThermals_max: 0.1,   // 平均温度最大值
-            avgThermals_min: 0.1,   // 平均温度最小值
-            avgThermals_avg: 0.1,   // 平均温度平均值
-            columns: [
-                {
+            Preset_Select: null, // 选择预制信息 Select组件
+            Preset_Input: null, // 选择预制信息 Input组件
+            ptz_speed: 25, // 云台速度
+            message: '', // 提示消息
+            iframeSrc: '', // iframe的src webRTC流地址
+            task_progress: 0, // 任务进度
+            task_status: '未知', // 任务状态
+            task_thermal_num: 0, // 任务测温数量
+            real_max_temp: 0.1, // 实时最高温度
+            real_min_temp: 0.1, // 实时最低温度
+            real_avg_temp: 0.1, // 实时平均温度
+            list_maxThermals: [35.1, 35.2, 35.3, 35.4], // 最大温度列表
+            list_minThermals: [24.1, 24.2, 24.3, 24.4], // 最小温度列表
+            list_avgThermals: [14.6, 14.7, 14.8, 14.9], // 平均温度列表
+            maxThermals_max: 0.1, // 最大温度最大值
+            maxThermals_min: 0.1, // 最大温度最小值
+            maxThermals_avg: 0.1, // 最大温度平均值
+            minThermals_max: 0.1, // 最小温度最大值
+            minThermals_min: 0.1, // 最小温度最小值
+            minThermals_avg: 0.1, // 最小温度平均值
+            avgThermals_max: 0.1, // 平均温度最大值
+            avgThermals_min: 0.1, // 平均温度最小值
+            avgThermals_avg: 0.1, // 平均温度平均值
+            columns: [{
                     title: 'Type',
                     key: 'type'
                 },
@@ -132,8 +143,7 @@ export default {
                     key: 'avg'
                 }
             ],
-            tab_data: [
-                {
+            tab_data: [{
                     type: '最大温度',
                     max: this.maxThermals_max,
                     min: this.maxThermals_min,
@@ -159,19 +169,24 @@ export default {
             scrollPosition: 0,
             scrollValue: 0,
             maxScroll: 0,
+            timer: null,
+            timer_heartbeat: null,
         };
     },
     mounted() {
         this.fetchPresetList();
         this.initIframe('mppstream');
         this.timer = setInterval(this.readTaskProgress, 2000);
+        this.timer_heartbeat = setInterval(this.sendSaveHeartbeat, 5000);
         this.initChart();
         this.calculateMaxScroll();
     },
     beforeDestroy() {
         clearInterval(this.timer);
+        clearInterval(this.timer_heartbeat);
     },
     methods: {
+        // 初始化iframe
         initIframe(stream) {
             const host = window.location.hostname;
             this.iframeSrc = `http://${host}:8889/${stream}`;
@@ -179,6 +194,7 @@ export default {
             iframe.style.width = '100%';
             iframe.style.height = '100%';
         },
+        // 获取预制信息列表
         async fetchPresetList() {
             try {
                 const host = window.location.hostname;
@@ -214,6 +230,7 @@ export default {
                 setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
             }
         },
+        // 选择预制信息编号
         PresetDataChange_Input() {
             // console.log(this.Preset_Input);
             // 判断是否超过预制信息列表的长度
@@ -225,11 +242,13 @@ export default {
             this.Preset_Select = this.Preset_Input;
             // console.log(this.Preset_Select);
         },
+        // 选择预制信息
         PresetDataChange_Select() {
             // console.log(this.Preset_Select);
             this.Preset_Input = parseInt(this.Preset_Select);
             // console.log(this.Preset_Input);
         },
+        // 运行预制信息
         async runPreset() {
             if (this.Preset_Select === null) {
                 this.$Message.error('请选择预制信息');
@@ -258,6 +277,7 @@ export default {
                 this.$Message.error('发送预制信息时出错');
             }
         },
+        // 暂停预制信息
         async pausePreset() {
             const host = window.location.hostname;
             const port = '8010'; // 你的后端端口号
@@ -277,7 +297,8 @@ export default {
                 this.$Message.error('暂停预制信息时出错');
             }
         },
-        async readTaskProgress(){       // 读任务进度
+        // 读任务进度
+        async readTaskProgress() {
             const host = window.location.hostname;
             const port = '8010'; // 你的后端端口号
             const url_send = `http://${host}:${port}/api/task/progress`;
@@ -296,26 +317,27 @@ export default {
                             this.task_status = '未知';
                     }
                 }
-                if (responseData.progress){
+                if (responseData.progress) {
                     this.task_progress = parseInt(responseData.progress);
                 }
-                if (responseData.thermal_num){
+                if (responseData.thermal_num) {
                     this.task_thermal_num = parseInt(responseData.thermal_num)
                 }
-                if (responseData.realtime_max_thermal){
+                if (responseData.realtime_max_thermal) {
                     this.real_max_temp = parseFloat(responseData.realtime_max_thermal)
                 }
-                if (responseData.realtime_min_thermal){
+                if (responseData.realtime_min_thermal) {
                     this.real_min_temp = parseFloat(responseData.realtime_min_thermal)
                 }
-                if (responseData.realtime_avg_thermal){
+                if (responseData.realtime_avg_thermal) {
                     this.real_avg_temp = parseFloat(responseData.realtime_avg_thermal)
                 }
             } catch (error) {
                 console.error('获取任务进度时出错:', error);
             }
         },
-        async readTaskResult(){     // 读取任务结果
+        // 读取任务结果
+        async readTaskResult() {
             const host = window.location.hostname;
             const port = '8010'; // 你的后端端口号
             const url_send = `http://${host}:${port}/api/task/result`;
@@ -324,7 +346,7 @@ export default {
                 const responseData = response.data;
                 if (responseData.status === 'success') {
                     this.$Message.success('任务结果已更新');
-                    
+
                 } else {
                     this.$Message.error('任务仍在运行中, 展示部分结果');
                 }
@@ -340,8 +362,7 @@ export default {
                 this.avgThermals_max = responseData.avgThermals_max;
                 this.avgThermals_min = responseData.avgThermals_min;
                 this.avgThermals_avg = responseData.avgThermals_avg;
-                this.tab_data = [
-                    {
+                this.tab_data = [{
                         type: '最大温度',
                         max: parseFloat(responseData.maxThermals_max),
                         min: parseFloat(responseData.maxThermals_min),
@@ -370,18 +391,22 @@ export default {
                 this.readThermalImage(i);
             }
         },
-        
-        async on_capture(){    // 拍照
+        // 拍照
+        async on_capture() {
             const host = window.location.hostname;
             const port = '8010'; // 你的后端端口号
             const url_send = `http://${host}:${port}/api/camera/capture`;
             try {
-                const response = await axios.get(url_send, { responseType: 'arraybuffer' });
+                const response = await axios.get(url_send, {
+                    responseType: 'arraybuffer'
+                });
                 const contentType = response.headers['content-type'];
                 console.log(contentType)
                 if (contentType && contentType.includes('image/jpeg')) {
                     console.log('测试预制信息成功');
-                    const blob = new Blob([response.data], { type: 'image/jpeg' });
+                    const blob = new Blob([response.data], {
+                        type: 'image/jpeg'
+                    });
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
                     const timestamp = new Date().toISOString().replace(/[-:]/g, '_').replace(/\..+/, '');
@@ -400,77 +425,87 @@ export default {
                 this.$Message.error('无图像！');
             }
         },
+        // 初始化温度曲线图
         initChart() {
             const chartDom = document.getElementById('temperature-chart');
             const myChart = echarts.init(chartDom);
             const option = {
                 title: {
-                text: '温度曲线图'
+                    text: '温度曲线图'
                 },
                 tooltip: {
-                trigger: 'axis'
+                    trigger: 'axis'
                 },
                 legend: {
-                data: ['最大温度', '最小温度', '平均温度']
+                    data: ['最大温度', '最小温度', '平均温度']
                 },
                 xAxis: {
-                type: 'category',
-                data: Array.from({ length: this.list_maxThermals.length }, (_, i) => i + 1)
+                    type: 'category',
+                    data: Array.from({
+                        length: this.list_maxThermals.length
+                    }, (_, i) => i + 1)
                 },
                 yAxis: {
-                type: 'value',
-                axisLabel: {
-                    formatter: '{value} °C'
-                }
+                    type: 'value',
+                    axisLabel: {
+                        formatter: '{value} °C'
+                    }
                 },
-                series: [
-                {
-                    name: '最大温度',
-                    type: 'line',
-                    data: this.list_maxThermals
-                },
-                {
-                    name: '最小温度',
-                    type: 'line',
-                    data: this.list_minThermals
-                },
-                {
-                    name: '平均温度',
-                    type: 'line',
-                    data: this.list_avgThermals
-                }
+                series: [{
+                        name: '最大温度',
+                        type: 'line',
+                        data: this.list_maxThermals
+                    },
+                    {
+                        name: '最小温度',
+                        type: 'line',
+                        data: this.list_minThermals
+                    },
+                    {
+                        name: '平均温度',
+                        type: 'line',
+                        data: this.list_avgThermals
+                    }
                 ]
             };
             myChart.setOption(option);
         },
+        // 滚动条滚动
         handleScroll(value) {
             this.scrollPosition = value;
         },
+        // 显示大图
         showLargeImage(image) {
             // 这里可以添加点击图片后的放大显示逻辑
             console.log('显示图片:', image.id);
         },
+        // 计算滚动条最大值
         calculateMaxScroll() {
             const containerHeight = 400; // 容器高度
             const totalImagesHeight = Math.ceil(this.images.length / 2) * 200; // 每行2张图，每张图高200px
             this.maxScroll = Math.max(0, totalImagesHeight - containerHeight);
         },
+        // 读取测温过程图像
         async readThermalImage(id) {
             if (id < 0 || id > 19) {
                 this.$Message.error('图像编号超出范围');
                 return;
             }
-            
+
             const host = window.location.hostname;
             const port = '8010';
             const url_send = `http://${host}:${port}/api/task/thermal_image?id=${id}`;
-            
+
             try {
-                const response = await axios.get(url_send, { responseType: 'arraybuffer' });
+                const response = await axios.get(url_send, {
+                    responseType: 'arraybuffer'
+                });
                 const contentType = response.headers['content-type'];
-                
+
                 if (contentType && contentType.includes('image/jpeg')) {
-                    const blob = new Blob([response.data], { type: 'image/jpeg' });
+                    const blob = new Blob([response.data], {
+                        type: 'image/jpeg'
+                    });
                     const imageUrl = URL.createObjectURL(blob);
                     this.images[id].src = imageUrl;
                 } else {
@@ -481,63 +516,122 @@ export default {
                 this.$Message.error(`读取图像${id}时出错`);
             }
         },
+        // 开始录像
+        async startRecording() {
+            const host = window.location.hostname;
+            const port = '8010';
+            const url_send = `http://${host}:${port}/api/camera/start_recording`;
+
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+                if (response.data.status === 'success') {
+                    this.$Message.success('开始录像');
+                    this.isSaveVideo = true;
+                    this.message = '开始录像';
+                    setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
+                } else {
+                    this.$Message.error('开始录像失败');
+                }
+            } catch (error) {
+                console.error('开始录像时出错:', error);
+                this.$Message.error('开始录像时出错');
+            }
+        },
+        // 停止录像
+        async stopRecording() {
+            const host = window.location.hostname;
+            const port = '8010';
+            const url_send = `http://${host}:${port}/api/camera/stop_recording`;
+            this.isSaveVideo = false;
+
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+                if (response.data.status === 'success') {
+                    this.$Message.success('停止录像');
+                    this.message = '停止录像,视频名称: ' + response.data.file_name;
+                    setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
+                } else {
+                    this.$Message.error('停止录像失败');
+                    this.isSaveVideo = false;
+                }
+            } catch (error) {
+                console.error('停止录像时出错:', error);
+                this.$Message.error('停止录像时出错');
+            }
+        },
+        // 发送保存心跳
+        async sendSaveHeartbeat() {
+            if (this.isSaveVideo) {
+                const host = window.location.hostname;
+                const port = '8010';
+                const url_send = `http://${host}:${port}/api/camera/recording_heartbeat`;
+                try {
+                    const response = await axios.put(url_send);
+                    // console.log(response.data);
+                } catch (error) {
+                    console.error('发送保存心跳时出错:', error);
+                    this.$Message.error('发送保存心跳时出错');
+                }
+            }
+        }
     }
 }
-
 </script>
 
 <style lang="less" scoped>
-
-    #temperature-chart {
+#temperature-chart {
     width: 100%;
     height: 400px;
-    }
+}
 
-    .iframe-container {
+.iframe-container {
     position: relative;
     width: 100%;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    padding-bottom: 56.25%;
+    /* 16:9 aspect ratio */
     height: 0;
     overflow: hidden;
-    }
+}
 
-    iframe {
+iframe {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     border: none;
-    }
+}
 
-    .image-container {
-        position: relative;
-        height: 400px;
-        overflow: auto;
-    }
+.image-container {
+    position: relative;
+    height: 400px;
+    overflow: auto;
+}
 
-    .image-grid {
-        display: flex;
-        flex-wrap: wrap;
-        width: 100%;
-    }
+.image-grid {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+}
 
-    .grid-image {
-        width: calc(50% - 10px);
-        height: 190px;
-        margin: 5px;
-        object-fit: cover;
-        cursor: pointer;
-    }
+.grid-image {
+    width: calc(50% - 10px);
+    height: 190px;
+    margin: 5px;
+    object-fit: cover;
+    cursor: pointer;
+}
 
-    .scroll-bar {
-        position: absolute;
-        right: 0;
-        top: 10px;
-        width: 20px;
-        height: calc(100% - 20px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+.scroll-bar {
+    position: absolute;
+    right: 0;
+    top: 10px;
+    width: 20px;
+    height: calc(100% - 20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 </style>
