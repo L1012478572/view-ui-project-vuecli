@@ -39,9 +39,11 @@
                 <br>
                 <br>
                 <Button type="info" @click="on_capture">拍照</Button>
-                <br>
-                <Button type="info" @click="startRecording">开始录像</Button>
-                <Button type="info" @click="stopRecording">停止录像</Button>
+                <div>   
+                    <br>
+                    <Button type="info" @click="startRecording">开始录像</Button>
+                    <Button type="info" @click="stopRecording">停止录像</Button>
+                </div>
             </div>
         </GridItem>
         <GridItem>

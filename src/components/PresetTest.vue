@@ -22,6 +22,15 @@
                             <br>
                             <Button type="info" @click="testPreset">测试预制信息</Button>
                         </div>
+                        <div>
+                            <br>
+                            <Button type="info" @click="on_capture">拍照</Button>
+                        </div>
+                        <div>
+                            <br>
+                            <Button type="info" @click="startRecording">开始录像</Button>
+                            <Button type="info" @click="stopRecording">停止录像</Button>
+                        </div>
                     </GridItem>
                     <GridItem>
                         <div>
@@ -125,6 +134,8 @@ export default {
             ptzCurrentFocus: 27000, // 当前绝对焦距
             ptzCurrentFocalLen: 22, // 当前焦距
             timer: null, // 添加定时器变量
+            timer_heartbeat: null,  // 添加心跳定时器变量
+            isSaveVideo: false, // 是否保存录像
         };
     },
     mounted() {
@@ -132,11 +143,15 @@ export default {
         this.initIframe('mppstream');
         // 启动定时获取云台位置
         this.timer = setInterval(this.PTZ_Get, 2000); // 每秒更新一次
+        this.timer_heartbeat = setInterval(this.sendSaveHeartbeat, 3000);
     },
     beforeDestroy() {
         // 组件销毁前清除定时器
         if (this.timer) {
             clearInterval(this.timer);
+        }
+        if (this.timer_heartbeat) {
+            clearInterval(this.timer_heartbeat);
         }
     },
     methods: {
@@ -327,6 +342,100 @@ export default {
                 console.error('获取云台位置失败:', error);
             }
         },
+        // 拍照
+        async on_capture() {
+            const host = window.location.hostname;
+            const port = '8010'; // 你的后端端口号
+            const url_send = `http://${host}:${port}/api/camera/capture`;
+            try {
+                const response = await axios.get(url_send, {
+                    responseType: 'arraybuffer'
+                });
+                const contentType = response.headers['content-type'];
+                console.log(contentType)
+                if (contentType && contentType.includes('image/jpeg')) {
+                    console.log('测试预制信息成功');
+                    const blob = new Blob([response.data], {
+                        type: 'image/jpeg'
+                    });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    const timestamp = new Date().toISOString().replace(/[-:]/g, '_').replace(/\..+/, '');
+                    link.download = `${timestamp}_capture.jpg`;
+                    link.click();
+                    // console.log(blob);
+                    // const imageUrl = URL.createObjectURL(blob);
+                    // console.log(imageUrl);
+                    // this.$refs.showResultImage.src = imageUrl;
+                    // console.log(this.$refs.showResultImage.src);
+                } else {
+                    this.$Message.error('测试错误，无图像！');
+                }
+            } catch (error) {
+                console.error('测试预制信息时出错:', error);
+                this.$Message.error('无图像！');
+            }
+        },
+        // 开始录像
+        async startRecording() {
+            const host = window.location.hostname;
+            const port = '8010';
+            const url_send = `http://${host}:${port}/api/camera/start_recording`;
+
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+                if (response.data.status === 'success') {
+                    this.$Message.success('开始录像');
+                    this.isSaveVideo = true;
+                    this.message = '开始录像';
+                    setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
+                } else {
+                    this.$Message.error('开始录像失败');
+                }
+            } catch (error) {
+                console.error('开始录像时出错:', error);
+                this.$Message.error('开始录像时出错');
+            }
+        },
+        // 停止录像
+        async stopRecording() {
+            const host = window.location.hostname;
+            const port = '8010';
+            const url_send = `http://${host}:${port}/api/camera/stop_recording`;
+            this.isSaveVideo = false;
+
+            try {
+                const response = await axios.put(url_send);
+                console.log(response.data);
+                if (response.data.status === 'success') {
+                    this.$Message.success('停止录像');
+                    this.message = '停止录像,视频名称: ' + response.data.file_name;
+                    setTimeout(() => this.message = '', 3000); // 3秒后清除提示消息
+                } else {
+                    this.$Message.error('停止录像失败');
+                    this.isSaveVideo = false;
+                }
+            } catch (error) {
+                console.error('停止录像时出错:', error);
+                this.$Message.error('停止录像时出错');
+            }
+        },
+        // 发送保存心跳
+        async sendSaveHeartbeat() {
+            if (this.isSaveVideo) {
+                const host = window.location.hostname;
+                const port = '8010';
+                const url_send = `http://${host}:${port}/api/camera/recording_heartbeat`;
+                try {
+                    const response = await axios.put(url_send);
+                    // console.log(response.data);
+                } catch (error) {
+                    console.error('发送保存心跳时出错:', error);
+                    this.$Message.error('发送保存心跳时出错');
+                }
+            }
+        }
     },
 }
 </script>
